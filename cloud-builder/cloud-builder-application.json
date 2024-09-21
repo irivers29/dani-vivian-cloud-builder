@@ -1,62 +1,89 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
     "Description": "AWS CloudFormation Template for IoT Core Setup",
+    "Parameters": {
+        "Environment": {
+            "Type": "String",
+            "Description": "Environment identifier (e.g., dev, prod)",
+            "Default": "dev",
+            "AllowedValues": [
+                "dev",
+                "prod"
+            ],
+            "ConstraintDescription": "Must be either dev or prod."
+        },
+        "S3BucketName": {
+            "Type": "String",
+            "Description": "S3 Bucket name for Lambda deployment package",
+            "Default": "awslambda-eu-cent-1-tasks"
+        }
+    },
     "Resources": {
-        "MyIoTPolicy": {
+        "IoTPolicy": {
             "Type": "AWS::IoT::Policy",
             "Properties": {
-                "PolicyName": "jimm_monitoring_iot_policy_0.0.1",
+                "PolicyName": {
+                    "Fn::Sub": "${Environment}-iot-policy"
+                },
                 "PolicyDocument": {
                     "Version": "2012-10-17",
                     "Statement": [
                         {
                             "Effect": "Allow",
                             "Action": "iot:Connect",
-                            "Resource": "arn:aws:iot:eu-central-1:073801343530:client/basicPubSub"
+                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:client/basicPubSub"
                         },
                         {
                             "Effect": "Allow",
                             "Action": "iot:Publish",
-                            "Resource": "arn:aws:iot:eu-central-1:073801343530:topic/sdk/test/python"
+                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/sdk/test/python"
                         },
                         {
                             "Effect": "Allow",
                             "Action": "iot:Subscribe",
-                            "Resource": "arn:aws:iot:eu-central-1:073801343530:topic/device/9/ack"
+                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/device/9/ack"
                         }
                     ]
                 }
             }
         },
-        "MyIoTTopicRule": {
+        "IoTTopicRule": {
             "Type": "AWS::IoT::TopicRule",
             "Properties": {
-                "RuleName": "WriteToSQSRule",
+                "RuleName": {
+                    "Fn::Sub": "${Environment}-iot-rule-write-to-sqs"
+                },
                 "TopicRulePayload": {
                     "Sql": "SELECT * FROM 'sdk/test/python'",
                     "Actions": [
                         {
                             "Sqs": {
-                                "RoleArn": "arn:aws:iam::073801343530:role/jimm-monitoring-data-acquisition-pipeline-MyIoTRole-rDZVLir6OTzN",
-                                "QueueUrl": "https://sqs.eu-central-1.amazonaws.com/073801343530/MyIoTMessagesQueue",
+                                "RoleArn": "arn:aws:iam::${AWS::AccountId}:role/${Environment}-iot-sqs-role",
+                                "QueueUrl": {
+                                    "Ref": "SQSQueue"
+                                },
                                 "UseBase64": true
                             }
                         }
                     ],
                     "ErrorAction": {
                         "CloudwatchLogs": {
-                            "RoleArn": "arn:aws:iam::073801343530:role/service-role/write_logs_from_iot_core_rule",
-                            "LogGroupName": "not_rule_log",
+                            "RoleArn": "arn:aws:iam::${AWS::AccountId}:role/${Environment}-iot-logs-role",
+                            "LogGroupName": {
+                                "Fn::Sub": "/aws/iot/${Environment}-rule-log"
+                            },
                             "BatchMode": false
                         }
                     }
                 }
             }
         },
-        "MyIoTRole": {
+        "IoTRole": {
             "Type": "AWS::IAM::Role",
             "Properties": {
-                "RoleName": "jimm-monitoring-data-acquisition-pipeline-MyIoTRole-rDZVLir6OTzN",
+                "RoleName": {
+                    "Fn::Sub": "${Environment}-iot-sqs-role"
+                },
                 "AssumeRolePolicyDocument": {
                     "Version": "2012-10-17",
                     "Statement": [
@@ -69,23 +96,23 @@
                         }
                     ]
                 },
-                "MaxSessionDuration": 3600,
-                "Tags": [
-                    {
-                        "Key": "version",
-                        "Value": "0.1.0"
-                    }
-                ],
                 "Policies": [
                     {
-                        "PolicyName": "IoTToSQSPolicy",
+                        "PolicyName": {
+                            "Fn::Sub": "${Environment}-iot-to-sqs-policy"
+                        },
                         "PolicyDocument": {
                             "Version": "2012-10-17",
                             "Statement": [
                                 {
                                     "Effect": "Allow",
                                     "Action": "sqs:SendMessage",
-                                    "Resource": "arn:aws:sqs:eu-central-1:073801343530:MyIoTMessagesQueue"
+                                    "Resource": {
+                                        "Fn::GetAtt": [
+                                            "SQSQueue",
+                                            "Arn"
+                                        ]
+                                    }
                                 }
                             ]
                         }
@@ -93,16 +120,22 @@
                 ]
             }
         },
-        "MyLambdaFunction": {
+        "LambdaFunction": {
             "Type": "AWS::Lambda::Function",
             "Properties": {
-                "FunctionName": "jimm-monitoring-data-acquisition--MyLambdaFunction-Iv5dUrV3FOQq",
+                "FunctionName": {
+                    "Fn::Sub": "${Environment}-lambda-data-acquisition"
+                },
                 "Handler": "sqs_lambda_function.handler",
-                "Role": "arn:aws:iam::073801343530:role/jimm-monitoring-data-acqui-MySQSLambdaExecutionRole-KfSzjnol3KwH",
+                "Role": {
+                    "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${Environment}-lambda-execution-role"
+                },
                 "Runtime": "python3.8",
                 "Code": {
-                    "S3Bucket": "awslambda-eu-cent-1-tasks",
-                    "S3Key": "snapshots/073801343530/jimm-monitoring-data-acquisition--MyLambdaFunction-Iv5dUrV3FOQq-f881c6da-ca4b-443f-b763-70e579de5da0"
+                    "S3Bucket": {
+                        "Ref": "S3BucketName"
+                    },
+                    "S3Key": "lambda_function_package.zip"
                 },
                 "Timeout": 3,
                 "MemorySize": 128,
@@ -115,23 +148,20 @@
                 "TracingConfig": {
                     "Mode": "PassThrough"
                 },
-                "PackageType": "Zip",
                 "Architectures": [
                     "x86_64"
                 ],
                 "EphemeralStorage": {
                     "Size": 512
-                },
-                "LoggingConfig": {
-                    "LogFormat": "Text",
-                    "LogGroup": "/aws/lambda/jimm-monitoring-data-acquisition--MyLambdaFunction-Iv5dUrV3FOQq"
                 }
             }
         },
-        "MySQSLambdaExecutionRole": {
+        "LambdaExecutionRole": {
             "Type": "AWS::IAM::Role",
             "Properties": {
-                "RoleName": "jimm-monitoring-data-acqui-MySQSLambdaExecutionRole-KfSzjnol3KwH",
+                "RoleName": {
+                    "Fn::Sub": "${Environment}-lambda-execution-role"
+                },
                 "AssumeRolePolicyDocument": {
                     "Version": "2012-10-17",
                     "Statement": [
@@ -144,54 +174,28 @@
                         }
                     ]
                 },
-                "MaxSessionDuration": 3600,
-                "Tags": [
-                    {
-                        "Key": "version",
-                        "Value": "0.1.0"
-                    }
-                ],
                 "Policies": [
                     {
-                        "PolicyName": "LambdaSQSTimestreamPolicy",
+                        "PolicyName": {
+                            "Fn::Sub": "${Environment}-lambda-sqs-timestream-policy"
+                        },
                         "PolicyDocument": {
                             "Version": "2012-10-17",
                             "Statement": [
                                 {
-                                    "Sid": "VisualEditor0",
                                     "Effect": "Allow",
                                     "Action": [
                                         "sqs:DeleteMessage",
-                                        "dynamodb:PutItem",
                                         "sqs:ReceiveMessage",
-                                        "dynamodb:GetItem",
                                         "sqs:GetQueueAttributes",
-                                        "iot:Publish"
-                                    ],
-                                    "Resource": [
-                                        "arn:aws:iot:eu-central-1:073801343530:topic/device/*/ack",
-                                        "arn:aws:sqs:eu-central-1:073801343530:MyIoTMessagesQueue",
-                                        "arn:aws:dynamodb:*:073801343530:table/*"
-                                    ]
-                                },
-                                {
-                                    "Sid": "VisualEditor1",
-                                    "Effect": "Allow",
-                                    "Action": [
-                                        "timestream:DescribeEndpoints",
+                                        "iot:Publish",
+                                        "dynamodb:GetItem",
+                                        "dynamodb:PutItem",
                                         "timestream:WriteRecords",
-                                        "timestream:ListTables"
+                                        "timestream:DescribeEndpoints"
                                     ],
                                     "Resource": "*"
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        "PolicyName": "LambdaLoggingPolicy",
-                        "PolicyDocument": {
-                            "Version": "2012-10-17",
-                            "Statement": [
+                                },
                                 {
                                     "Effect": "Allow",
                                     "Action": [
@@ -207,27 +211,12 @@
                 ]
             }
         },
-        "MyEventSourceMapping": {
-            "Type": "AWS::Lambda::EventSourceMapping",
-            "Properties": {
-                "EventSourceArn": {
-                    "Fn::GetAtt": [
-                        "MySQSQueue",
-                        "Arn"
-                    ]
-                },
-                "FunctionName": {
-                    "Ref": "MyLambdaFunction"
-                },
-                "BatchSize": 10,
-                "MaximumBatchingWindowInSeconds": 0,
-                "Enabled": true
-            }
-        },
-        "MySQSQueue": {
+        "SQSQueue": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
-                "QueueName": "MyIoTMessagesQueue",
+                "QueueName": {
+                    "Fn::Sub": "${Environment}-iot-messages-queue"
+                },
                 "VisibilityTimeout": 300,
                 "MaximumMessageSize": 262144,
                 "MessageRetentionPeriod": 345600,
@@ -235,45 +224,24 @@
                 "ReceiveMessageWaitTimeSeconds": 0,
                 "SqsManagedSseEnabled": true
             }
+        }
+    },
+    "Outputs": {
+        "SQSQueueArn": {
+            "Description": "ARN of the SQS queue",
+            "Value": {
+                "Fn::GetAtt": [
+                    "SQSQueue",
+                    "Arn"
+                ]
+            }
         },
-        "WriteLogsFromIoTCoreRuleRole": {
-            "Type": "AWS::IAM::Role",
-            "Properties": {
-                "RoleName": "write_logs_from_iot_core_rule",
-                "AssumeRolePolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Principal": {
-                                "Service": "iot.amazonaws.com"
-                            },
-                            "Action": "sts:AssumeRole"
-                        }
-                    ]
-                },
-                "MaxSessionDuration": 3600,
-                "ManagedPolicyArns": [
-                    "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
-                ],
-                "Policies": [
-                    {
-                        "PolicyName": "aws-iot-rule-WriteToSQSRule-erroraction-role-write_logs_from_iot_core_rule",
-                        "PolicyDocument": {
-                            "Version": "2012-10-17",
-                            "Statement": [
-                                {
-                                    "Effect": "Allow",
-                                    "Action": [
-                                        "logs:CreateLogGroup",
-                                        "logs:CreateLogStream",
-                                        "logs:PutLogEvents"
-                                    ],
-                                    "Resource": "arn:aws:logs:*:*:log-group:not_rule_log"
-                                }
-                            ]
-                        }
-                    }
+        "LambdaFunctionArn": {
+            "Description": "ARN of the Lambda function",
+            "Value": {
+                "Fn::GetAtt": [
+                    "LambdaFunction",
+                    "Arn"
                 ]
             }
         }

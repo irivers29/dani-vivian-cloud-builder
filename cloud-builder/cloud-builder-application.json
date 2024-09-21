@@ -115,30 +115,38 @@
         "MyLambdaFunction": {
             "Type": "AWS::Lambda::Function",
             "Properties": {
-                "Handler": "sqs_lambda_function.handler",
-                "Role": {
-                    "Fn::GetAtt": [
-                        "MySQSLambdaExecutionRole",
-                        "Arn"
-                    ]
-                },
-                "Runtime": "python3.8",
-                "Code": {
-                    "S3Bucket": "cf-templates-nmiybd9bdid4-eu-central-1",
-                    "S3Key": "my_deployment_package.zip"
-                },
-                "Environment": {
-                    "Variables": {
-                        "TIMESTREAM_DATABASE": {
-                            "Ref": "MyTimestreamDatabase"
-                        },
-                        "TIMESTREAM_TABLE": {
-                            "Ref": "MyTimestreamTable"
-                        }
-                    }
+              "FunctionName": "jimm-monitoring-data-acquisition--MyLambdaFunction-Iv5dUrV3FOQq",
+              "Handler": "sqs_lambda_function.handler",
+              "Role": "arn:aws:iam::073801343530:role/jimm-monitoring-data-acqui-MySQSLambdaExecutionRole-KfSzjnol3KwH",
+              "Runtime": "python3.8",
+              "Code": {
+                "S3Bucket": "awslambda-eu-cent-1-tasks",
+                "S3Key": "snapshots/073801343530/jimm-monitoring-data-acquisition--MyLambdaFunction-Iv5dUrV3FOQq-f881c6da-ca4b-443f-b763-70e579de5da0"
+              },
+              "Timeout": 3,
+              "MemorySize": 128,
+              "Environment": {
+                "Variables": {
+                  "TIMESTREAM_DATABASE": "MyTimestreamDatabase",
+                  "TIMESTREAM_TABLE": "MyTimestreamTable"
                 }
+              },
+              "TracingConfig": {
+                "Mode": "PassThrough"
+              },
+              "PackageType": "Zip",
+              "Architectures": [
+                "x86_64"
+              ],
+              "EphemeralStorage": {
+                "Size": 512
+              },
+              "LoggingConfig": {
+                "LogFormat": "Text",
+                "LogGroup": "/aws/lambda/jimm-monitoring-data-acquisition--MyLambdaFunction-Iv5dUrV3FOQq"
+              }
             }
-        },
+          },
         "MySQSLambdaExecutionRole": {
             "Type": "AWS::IAM::Role",
             "Properties": {

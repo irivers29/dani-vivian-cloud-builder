@@ -1,0 +1,25 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "AWS CloudFormation Template for IoT Core Setup",
+    "Resources": {
+        "MyTimestreamDatabase": {
+            "Type": "AWS::Timestream::Database",
+            "Properties": {
+                "DatabaseName": "MyTimestreamDatabase"
+            }
+        },
+        "MyTimestreamTable": {
+            "Type": "AWS::Timestream::Table",
+            "Properties": {
+                "DatabaseName": {
+                    "Ref": "MyTimestreamDatabase"
+                },
+                "TableName": "MyTimestreamTable",
+                "RetentionProperties": {
+                    "MemoryStoreRetentionPeriodInHours": "24",
+                    "MagneticStoreRetentionPeriodInDays": "7"
+                }
+            }
+        }
+    }
+}

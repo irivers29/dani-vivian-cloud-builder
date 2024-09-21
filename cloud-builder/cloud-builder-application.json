@@ -131,6 +131,7 @@
         "MySQSLambdaExecutionRole": {
             "Type": "AWS::IAM::Role",
             "Properties": {
+                "RoleName": "jimm-monitoring-data-acqui-MySQSLambdaExecutionRole-KfSzjnol3KwH",
                 "AssumeRolePolicyDocument": {
                     "Version": "2012-10-17",
                     "Statement": [
@@ -143,6 +144,13 @@
                         }
                     ]
                 },
+                "MaxSessionDuration": 3600,
+                "Tags": [
+                    {
+                        "Key": "version",
+                        "Value": "0.1.0"
+                    }
+                ],
                 "Policies": [
                     {
                         "PolicyName": "LambdaSQSTimestreamPolicy",
@@ -150,34 +158,31 @@
                             "Version": "2012-10-17",
                             "Statement": [
                                 {
+                                    "Sid": "VisualEditor0",
                                     "Effect": "Allow",
                                     "Action": [
-                                        "sqs:ReceiveMessage",
                                         "sqs:DeleteMessage",
-                                        "sqs:GetQueueAttributes"
+                                        "dynamodb:PutItem",
+                                        "sqs:ReceiveMessage",
+                                        "dynamodb:GetItem",
+                                        "sqs:GetQueueAttributes",
+                                        "iot:Publish"
                                     ],
-                                    "Resource": {
-                                        "Fn::GetAtt": [
-                                            "MySQSQueue",
-                                            "Arn"
-                                        ]
-                                    }
+                                    "Resource": [
+                                        "arn:aws:iot:eu-central-1:073801343530:topic/device/*/ack",
+                                        "arn:aws:sqs:eu-central-1:073801343530:MyIoTMessagesQueue",
+                                        "arn:aws:dynamodb:*:073801343530:table/*"
+                                    ]
                                 },
                                 {
+                                    "Sid": "VisualEditor1",
                                     "Effect": "Allow",
                                     "Action": [
-                                        "timestream:WriteRecords",
                                         "timestream:DescribeEndpoints",
+                                        "timestream:WriteRecords",
                                         "timestream:ListTables"
                                     ],
                                     "Resource": "*"
-                                },
-                                {
-                                    "Effect": "Allow",
-                                    "Action": "iot:Publish",
-                                    "Resource": [
-                                        "arn:aws:iot:eu-central-1:073801343530:topic/device/*/ack"
-                                    ]
                                 }
                             ]
                         }
@@ -214,14 +219,62 @@
                 "FunctionName": {
                     "Ref": "MyLambdaFunction"
                 },
-                "BatchSize": 10
+                "BatchSize": 10,
+                "MaximumBatchingWindowInSeconds": 0,
+                "Enabled": true
             }
         },
         "MySQSQueue": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
                 "QueueName": "MyIoTMessagesQueue",
-                "VisibilityTimeout": 300
+                "VisibilityTimeout": 300,
+                "MaximumMessageSize": 262144,
+                "MessageRetentionPeriod": 345600,
+                "DelaySeconds": 0,
+                "ReceiveMessageWaitTimeSeconds": 0,
+                "SqsManagedSseEnabled": true
+            }
+        },
+        "WriteLogsFromIoTCoreRuleRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "RoleName": "write_logs_from_iot_core_rule",
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "iot.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "MaxSessionDuration": 3600,
+                "ManagedPolicyArns": [
+                    "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+                ],
+                "Policies": [
+                    {
+                        "PolicyName": "aws-iot-rule-WriteToSQSRule-erroraction-role-write_logs_from_iot_core_rule",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "logs:CreateLogGroup",
+                                        "logs:CreateLogStream",
+                                        "logs:PutLogEvents"
+                                    ],
+                                    "Resource": "arn:aws:logs:*:*:log-group:not_rule_log"
+                                }
+                            ]
+                        }
+                    }
+                ]
             }
         }
     }

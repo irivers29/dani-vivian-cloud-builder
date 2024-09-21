@@ -2,237 +2,238 @@
     "AWSTemplateFormatVersion": "2010-09-09",
     "Description": "AWS CloudFormation Template for IoT Core Setup",
     "Resources": {
-      "MyIoTPolicy": {
-        "Type": "AWS::IoT::Policy",
-        "Properties": {
-          "PolicyName": "jimm_monitoring_iot_policy_0.0.1",
-          "PolicyDocument": {
-            "Version": "2012-10-17",
-            "Statement": [
-              {
-                "Effect": "Allow",
-                "Action": [
-                  "iot:Connect"
-                ],
-                "Resource": [
-                  "arn:aws:iot:eu-central-1:073801343530:client/basicPubSub"
-                ]
-              },
-              {
-                "Effect": "Allow",
-                "Action": [
-                  "iot:Publish"
-                ],
-                "Resource": [
-                  "arn:aws:iot:eu-central-1:073801343530:topic/sdk/test/python"
-                ]
-              }
-            ]
-          }
-        }
-      },
-      "MyIoTTopicRule": {
-        "Type": "AWS::IoT::TopicRule",
-        "Properties": {
-          "RuleName": "WriteToSQSRule",
-          "TopicRulePayload": {
-            "Sql": "SELECT * FROM 'sdk/test/python'",
-            "Actions": [
-              {
-                "Sqs": {
-                  "RoleArn": {
-                    "Fn::GetAtt": [
-                      "MyIoTRole",
-                      "Arn"
+        "MyIoTPolicy": {
+            "Type": "AWS::IoT::Policy",
+            "Properties": {
+                "PolicyName": "jimm_monitoring_iot_policy_0.0.1",
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": "iot:Connect",
+                            "Resource": "arn:aws:iot:eu-central-1:073801343530:client/basicPubSub"
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": "iot:Publish",
+                            "Resource": "arn:aws:iot:eu-central-1:073801343530:topic/sdk/test/python"
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": "iot:Subscribe",
+                            "Resource": "arn:aws:iot:eu-central-1:073801343530:topic/device/9/ack"
+                        }
                     ]
-                  },
-                  "QueueUrl": {
-                    "Ref": "MySQSQueue"
-                  }
                 }
-              }
-            ]
-          }
-        }
-      },
-      "MyIoTRole": {
-        "Type": "AWS::IAM::Role",
-        "Properties": {
-          "AssumeRolePolicyDocument": {
-            "Version": "2012-10-17",
-            "Statement": [
-              {
-                "Effect": "Allow",
-                "Principal": {
-                  "Service": "iot.amazonaws.com"
-                },
-                "Action": "sts:AssumeRole"
-              }
-            ]
-          },
-          "Policies": [
-            {
-              "PolicyName": "IoTToSQSPolicy",
-              "PolicyDocument": {
-                "Version": "2012-10-17",
-                "Statement": [
-                  {
-                    "Effect": "Allow",
-                    "Action": "sqs:SendMessage",
-                    "Resource": {
-                      "Fn::GetAtt": [
-                        "MySQSQueue",
-                        "Arn"
-                      ]
-                    }
-                  }
-                ]
-              }
             }
-          ]
-        }
-      },
-      "MyTimestreamDatabase": {
-        "Type": "AWS::Timestream::Database",
-        "Properties": {
-          "DatabaseName": "MyTimestreamDatabase"
-        }
-      },
-      "MyTimestreamTable": {
-        "Type": "AWS::Timestream::Table",
-        "Properties": {
-          "DatabaseName": {
-            "Ref": "MyTimestreamDatabase"
-          },
-          "TableName": "MyTimestreamTable",
-          "RetentionProperties": {
-            "MemoryStoreRetentionPeriodInHours": "24",
-            "MagneticStoreRetentionPeriodInDays": "7"
-          }
-        }
-      },
-      "MyLambdaFunction": {
-        "Type": "AWS::Lambda::Function",
-        "Properties": {
-          "Handler": "sqs_lambda_function.handler",
-          "Role": {
-            "Fn::GetAtt": [
-              "MySQSLambdaExecutionRole",
-              "Arn"
-            ]
-          },
-          "Runtime": "python3.8",
-          "Code": {
-            "S3Bucket": "cf-templates-nmiybd9bdid4-eu-central-1",
-            "S3Key": "my_deployment_package.zip"
-          },
-          "Environment": {
-            "Variables": {
-              "TIMESTREAM_DATABASE": {
-                "Ref": "MyTimestreamDatabase"
-              },
-              "TIMESTREAM_TABLE": {
-                "Ref": "MyTimestreamTable"
-              }
-            }
-          }
-        }
-      },
-      "MySQSLambdaExecutionRole": {
-        "Type": "AWS::IAM::Role",
-        "Properties": {
-          "AssumeRolePolicyDocument": {
-            "Version": "2012-10-17",
-            "Statement": [
-              {
-                "Effect": "Allow",
-                "Principal": {
-                  "Service": "lambda.amazonaws.com"
-                },
-                "Action": "sts:AssumeRole"
-              }
-            ]
-          },
-          "Policies": [
-            {
-              "PolicyName": "LambdaSQSTimestreamPolicy",
-              "PolicyDocument": {
-                "Version": "2012-10-17",
-                "Statement": [
-                  {
-                    "Effect": "Allow",
-                    "Action": [
-                      "sqs:ReceiveMessage",
-                      "sqs:DeleteMessage",
-                      "sqs:GetQueueAttributes"
+        },
+        "MyIoTTopicRule": {
+            "Type": "AWS::IoT::TopicRule",
+            "Properties": {
+                "RuleName": "WriteToSQSRule",
+                "TopicRulePayload": {
+                    "Sql": "SELECT * FROM 'sdk/test/python'",
+                    "Actions": [
+                        {
+                            "Sqs": {
+                                "RoleArn": "arn:aws:iam::073801343530:role/jimm-monitoring-data-acquisition-pipeline-MyIoTRole-rDZVLir6OTzN",
+                                "QueueUrl": "https://sqs.eu-central-1.amazonaws.com/073801343530/MyIoTMessagesQueue",
+                                "UseBase64": true
+                            }
+                        }
                     ],
-                    "Resource": {
-                      "Fn::GetAtt": [
-                        "MySQSQueue",
-                        "Arn"
-                      ]
+                    "ErrorAction": {
+                        "CloudwatchLogs": {
+                            "RoleArn": "arn:aws:iam::073801343530:role/service-role/write_logs_from_iot_core_rule",
+                            "LogGroupName": "not_rule_log",
+                            "BatchMode": false
+                        }
                     }
-                  },
-                  {
-                    "Effect": "Allow",
-                    "Action": [
-                      "timestream:WriteRecords",
-                      "timestream:DescribeEndpoints",
-                      "timestream:ListTables"
-                    ],
-                    "Resource": "*"
-                  },
-                  {
-                    "Effect": "Allow",
-                    "Action": "iot:Publish",
-                    "Resource": [
-                      "arn:aws:iot:eu-central-1:073801343530:topic/device/*/ack"
+                }
+            }
+        },
+        "MyIoTRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "RoleName": "jimm-monitoring-data-acquisition-pipeline-MyIoTRole-rDZVLir6OTzN",
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "iot.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
                     ]
-                  }
+                },
+                "MaxSessionDuration": 3600,
+                "Tags": [
+                    {
+                        "Key": "version",
+                        "Value": "0.1.0"
+                    }
+                ],
+                "Policies": [
+                    {
+                        "PolicyName": "IoTToSQSPolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "sqs:SendMessage",
+                                    "Resource": "arn:aws:sqs:eu-central-1:073801343530:MyIoTMessagesQueue"
+                                }
+                            ]
+                        }
+                    }
                 ]
-              }
-            },
-            {
-              "PolicyName": "LambdaLoggingPolicy",
-              "PolicyDocument": {
-                "Version": "2012-10-17",
-                "Statement": [
-                  {
-                    "Effect": "Allow",
-                    "Action": [
-                      "logs:CreateLogGroup",
-                      "logs:CreateLogStream",
-                      "logs:PutLogEvents"
-                    ],
-                    "Resource": "arn:aws:logs:*:*:*"
-                  }
-                ]
-              }
             }
-          ]
+        },
+        "MyTimestreamDatabase": {
+            "Type": "AWS::Timestream::Database",
+            "Properties": {
+                "DatabaseName": "MyTimestreamDatabase"
+            }
+        },
+        "MyTimestreamTable": {
+            "Type": "AWS::Timestream::Table",
+            "Properties": {
+                "DatabaseName": {
+                    "Ref": "MyTimestreamDatabase"
+                },
+                "TableName": "MyTimestreamTable",
+                "RetentionProperties": {
+                    "MemoryStoreRetentionPeriodInHours": "24",
+                    "MagneticStoreRetentionPeriodInDays": "7"
+                }
+            }
+        },
+        "MyLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Handler": "sqs_lambda_function.handler",
+                "Role": {
+                    "Fn::GetAtt": [
+                        "MySQSLambdaExecutionRole",
+                        "Arn"
+                    ]
+                },
+                "Runtime": "python3.8",
+                "Code": {
+                    "S3Bucket": "cf-templates-nmiybd9bdid4-eu-central-1",
+                    "S3Key": "my_deployment_package.zip"
+                },
+                "Environment": {
+                    "Variables": {
+                        "TIMESTREAM_DATABASE": {
+                            "Ref": "MyTimestreamDatabase"
+                        },
+                        "TIMESTREAM_TABLE": {
+                            "Ref": "MyTimestreamTable"
+                        }
+                    }
+                }
+            }
+        },
+        "MySQSLambdaExecutionRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "lambda.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyName": "LambdaSQSTimestreamPolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "sqs:ReceiveMessage",
+                                        "sqs:DeleteMessage",
+                                        "sqs:GetQueueAttributes"
+                                    ],
+                                    "Resource": {
+                                        "Fn::GetAtt": [
+                                            "MySQSQueue",
+                                            "Arn"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "timestream:WriteRecords",
+                                        "timestream:DescribeEndpoints",
+                                        "timestream:ListTables"
+                                    ],
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "iot:Publish",
+                                    "Resource": [
+                                        "arn:aws:iot:eu-central-1:073801343530:topic/device/*/ack"
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "PolicyName": "LambdaLoggingPolicy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "logs:CreateLogGroup",
+                                        "logs:CreateLogStream",
+                                        "logs:PutLogEvents"
+                                    ],
+                                    "Resource": "arn:aws:logs:*:*:*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "MyEventSourceMapping": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "Properties": {
+                "EventSourceArn": {
+                    "Fn::GetAtt": [
+                        "MySQSQueue",
+                        "Arn"
+                    ]
+                },
+                "FunctionName": {
+                    "Ref": "MyLambdaFunction"
+                },
+                "BatchSize": 10
+            }
+        },
+        "MySQSQueue": {
+            "Type": "AWS::SQS::Queue",
+            "Properties": {
+                "QueueName": "MyIoTMessagesQueue",
+                "VisibilityTimeout": 300
+            }
         }
-      },
-      "MyEventSourceMapping": {
-        "Type": "AWS::Lambda::EventSourceMapping",
-        "Properties": {
-          "EventSourceArn": {
-            "Fn::GetAtt": [
-              "MySQSQueue",
-              "Arn"
-            ]
-          },
-          "FunctionName": {
-            "Ref": "MyLambdaFunction"
-          },
-          "BatchSize": 10
-        }
-      },
-      "MySQSQueue": {
-        "Type": "AWS::SQS::Queue",
-        "Properties": {
-          "QueueName": "MyIoTMessagesQueue",
-          "VisibilityTimeout": 300
-        }
-      }
     }
-  }
+}

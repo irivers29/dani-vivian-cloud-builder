@@ -1,0 +1,50 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "AWS CloudFormation Template for IoT Core Setup",
+    "Parameters": {
+        "Environment": {
+            "Type": "String",
+            "Description": "Environment identifier (e.g., dev, prod)",
+            "Default": "dev",
+            "AllowedValues": [
+                "dev",
+                "prod"
+            ],
+            "ConstraintDescription": "Must be either dev or prod."
+        },
+        "DeviceNumber": {
+            "Type": "String",
+            "Description": "DeviceNumber identifier"
+        }
+    },
+    "Resources": {
+        "IoTPolicy": {
+            "Type": "AWS::IoT::Policy",
+            "Properties": {
+                "PolicyName": {
+                    "Fn::Sub": "${Environment}-iot-policy"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": "iot:Connect",
+                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:client/basicPubSub"
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": "iot:Publish",
+                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/sdk/test/python"
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": "iot:Subscribe",
+                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/device/${DeviceNumber}/ack"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

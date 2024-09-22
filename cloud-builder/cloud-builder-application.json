@@ -49,16 +49,22 @@
         },
         "IoTTopicRule": {
             "Type": "AWS::IoT::TopicRule",
+            "DependsOn": [
+                "IoTLogsRole",
+                "IoTRole"
+            ],
             "Properties": {
                 "RuleName": {
-                    "Fn::Sub": "${Environment}-iot-rule-write-to-sqs"
+                    "Fn::Sub": "${Environment}_iot_rule_write_to_sqs"
                 },
                 "TopicRulePayload": {
-                    "Sql": "SELECT * FROM 'sdk/test/python'",
+                    "Sql": "SELECT * FROM 'sdk/dev/ingoing'",
                     "Actions": [
                         {
                             "Sqs": {
-                                "RoleArn": "arn:aws:iam::${AWS::AccountId}:role/${Environment}-iot-sqs-role",
+                                "RoleArn": {
+                                    "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${Environment}-iot-sqs-role"
+                                },
                                 "QueueUrl": {
                                     "Ref": "SQSQueue"
                                 },
@@ -68,7 +74,9 @@
                     ],
                     "ErrorAction": {
                         "CloudwatchLogs": {
-                            "RoleArn": "arn:aws:iam::${AWS::AccountId}:role/${Environment}-iot-logs-role",
+                            "RoleArn": {
+                                "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${Environment}-iot-logs-role"
+                            },
                             "LogGroupName": {
                                 "Fn::Sub": "/aws/iot/${Environment}-rule-log"
                             },
@@ -76,6 +84,47 @@
                         }
                     }
                 }
+            }
+        },
+        "IoTLogsRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "RoleName": {
+                    "Fn::Sub": "${Environment}-iot-logs-role"
+                },
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "iot.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                },
+                "Policies": [
+                    {
+                        "PolicyName": {
+                            "Fn::Sub": "${Environment}-iot-logs-policy"
+                        },
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "logs:CreateLogGroup",
+                                        "logs:CreateLogStream",
+                                        "logs:PutLogEvents"
+                                    ],
+                                    "Resource": "arn:aws:logs:*:*:*"
+                                }
+                            ]
+                        }
+                    }
+                ]
             }
         },
         "IoTRole": {
@@ -122,6 +171,7 @@
         },
         "LambdaFunction": {
             "Type": "AWS::Lambda::Function",
+            "DependsOn": "LambdaExecutionRole",
             "Properties": {
                 "FunctionName": {
                     "Fn::Sub": "${Environment}-lambda-data-acquisition"
@@ -209,6 +259,23 @@
                         }
                     }
                 ]
+            }
+        },
+        "SQSToLambdaTrigger": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "Properties": {
+                "EventSourceArn": {
+                    "Fn::GetAtt": [
+                        "SQSQueue",
+                        "Arn"
+                    ]
+                },
+                "FunctionName": {
+                    "Ref": "LambdaFunction"
+                },
+                "BatchSize": 10,
+                "MaximumBatchingWindowInSeconds": 0,
+                "Enabled": true
             }
         },
         "SQSQueue": {

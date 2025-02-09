@@ -23,7 +23,7 @@
             "Type": "AWS::IoT::Policy",
             "Properties": {
                 "PolicyName": {
-                    "Fn::Sub": "${Environment}-iot-policy"
+                    "Fn::Sub": "${Environment}-iot-policy-things"
                 },
                 "PolicyDocument": {
                     "Version": "2012-10-17",
@@ -31,17 +31,30 @@
                         {
                             "Effect": "Allow",
                             "Action": "iot:Connect",
-                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:client/basicPubSub"
+                            "Resource": {
+                                "Fn::Sub": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:client/${!iot:Connection.Thing.ThingName}"
+                            }
                         },
                         {
                             "Effect": "Allow",
                             "Action": "iot:Publish",
-                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/sdk/test/python"
+                            "Resource": {
+                                "Fn::Sub": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/${Environment}/${!iot:Connection.Thing.ThingName}/publish"
+                            }
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": "iot:Receive",
+                            "Resource": {
+                                "Fn::Sub": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/${Environment}/${!iot:Connection.Thing.ThingName}/ack"
+                            }
                         },
                         {
                             "Effect": "Allow",
                             "Action": "iot:Subscribe",
-                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/device/9/ack"
+                            "Resource": {
+                                "Fn::Sub": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/${Environment}/${!iot:Connection.Thing.ThingName}/ack"
+                            }
                         }
                     ]
                 }
@@ -58,7 +71,9 @@
                     "Fn::Sub": "${Environment}_iot_rule_write_to_sqs"
                 },
                 "TopicRulePayload": {
-                    "Sql": "SELECT * FROM 'sdk/dev/ingoing'",
+                    "Sql": {
+                        "Fn::Sub": "SELECT * FROM '${Environment}/+/publish'"
+                    },
                     "Actions": [
                         {
                             "Sqs": {
@@ -254,6 +269,20 @@
                                         "logs:PutLogEvents"
                                     ],
                                     "Resource": "arn:aws:logs:*:*:*"
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "s3:ListBucket"
+                                    ],
+                                    "Resource": "arn:aws:s3:::dev-jimmonitoring-iot"
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "s3:GetObject"
+                                    ],
+                                    "Resource": "arn:aws:s3:::dev-jimmonitoring-iot/*"
                                 }
                             ]
                         }
@@ -291,6 +320,19 @@
                 "ReceiveMessageWaitTimeSeconds": 0,
                 "SqsManagedSseEnabled": true
             }
+        },
+        "IoTThingGroup": {
+            "Type": "AWS::IoT::ThingGroup",
+            "Properties": {
+                "ThingGroupName": {
+                    "Fn::Sub": "${Environment}-iot-things"
+                },
+                "ThingGroupProperties": {
+                    "ThingGroupDescription": {
+                        "Fn::Sub": "Thing Group for the ${Environment} environment"
+                    }
+                }
+            }
         }
     },
     "Outputs": {
@@ -310,6 +352,12 @@
                     "LambdaFunction",
                     "Arn"
                 ]
+            }
+        },
+        "IoTThingGroupName": {
+            "Description": "Name of the IoT Thing Group for this environment",
+            "Value": {
+                "Ref": "IoTThingGroup"
             }
         }
     }

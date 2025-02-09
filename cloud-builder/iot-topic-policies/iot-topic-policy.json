@@ -1,50 +1,66 @@
 {
-    "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "AWS CloudFormation Template for IoT Core Setup",
-    "Parameters": {
-        "Environment": {
-            "Type": "String",
-            "Description": "Environment identifier (e.g., dev, prod)",
-            "Default": "dev",
-            "AllowedValues": [
-                "dev",
-                "prod"
-            ],
-            "ConstraintDescription": "Must be either dev or prod."
-        },
-        "DeviceNumber": {
-            "Type": "String",
-            "Description": "DeviceNumber identifier"
-        }
-    },
-    "Resources": {
-        "IoTPolicy": {
-            "Type": "AWS::IoT::Policy",
-            "Properties": {
-                "PolicyName": {
-                    "Fn::Sub": "${Environment}-iot-policy"
-                },
-                "PolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Action": "iot:Connect",
-                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:client/basicPubSub"
-                        },
-                        {
-                            "Effect": "Allow",
-                            "Action": "iot:Publish",
-                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/sdk/test/python"
-                        },
-                        {
-                            "Effect": "Allow",
-                            "Action": "iot:Subscribe",
-                            "Resource": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/device/${DeviceNumber}/ack"
-                        }
-                    ]
-                }
-            }
-        }
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CloudFormation Template for AWS IoT Core Dynamic Policy Setup. This policy grants each device permissions to connect, publish, and subscribe to its own topics using the dynamic variable $$ {iot:Connection.Thing.ThingName}. For example, a device whose Thing name is \"abc123\" will be limited to:\n- Connecting as client \"abc123\"\n- Publishing to topic \"dev/abc123/publish\"\n- Subscribing (and receiving) from topic \"dev/abc123/ack\"",
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "Description": "Environment identifier (e.g. dev, prod)",
+      "Default": "dev",
+      "AllowedValues": [
+        "dev",
+        "prod"
+      ]
     }
+  },
+  "Resources": {
+    "IoTPolicy": {
+      "Type": "AWS::IoT::Policy",
+      "Properties": {
+        "PolicyName": {
+          "Fn::Sub": "${Environment}-iot-policy-things"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "iot:Connect",
+              "Resource": {
+                "Fn::Sub": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:client/${!iot:Connection.Thing.ThingName}"
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": "iot:Publish",
+              "Resource": {
+                "Fn::Sub": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/${Environment}/${!iot:Connection.Thing.ThingName}/publish"
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": "iot:Receive",
+              "Resource": {
+                "Fn::Sub": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/${Environment}/${!iot:Connection.Thing.ThingName}/ack"
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": "iot:Subscribe",
+              "Resource": {
+                "Fn::Sub": "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/${Environment}/${!iot:Connection.Thing.ThingName}/ack"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "IoTPolicyName": {
+      "Description": "The name of the IoT Policy",
+      "Value": {
+        "Ref": "IoTPolicy"
+      }
+    }
+  }
 }

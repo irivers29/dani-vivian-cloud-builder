@@ -207,7 +207,10 @@
                 "Environment": {
                     "Variables": {
                         "TIMESTREAM_DATABASE": "MyTimestreamDatabase",
-                        "TIMESTREAM_TABLE": "MyTimestreamTable"
+                        "TIMESTREAM_TABLE": "MyTimestreamTable",
+                        "ENVIRONMENT": {
+                            "Ref": "Environment"
+                        }
                     }
                 },
                 "TracingConfig": {

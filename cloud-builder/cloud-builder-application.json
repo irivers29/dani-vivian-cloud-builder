@@ -18,7 +18,51 @@
             "Default": "awslambda-eu-cent-1-tasks"
         }
     },
+    "Conditions": {
+        "IsProd": {
+            "Fn::Equals": [
+                {
+                    "Ref": "Environment"
+                },
+                "prod"
+            ]
+        }
+    },
     "Resources": {
+        "MyTimestreamTable": {
+            "Type": "AWS::Timestream::Table",
+            "Properties": {
+                "DatabaseName": "MyTimestreamDatabase",
+                "TableName": {
+                    "Fn::Sub": "${Environment}-device-data"
+                },
+                "RetentionProperties": {
+                    "MemoryStoreRetentionPeriodInHours": {
+                        "Fn::If": [
+                            "IsProd",
+                            "720",
+                            "16"
+                        ]
+                    },
+                    "MagneticStoreRetentionPeriodInDays": {
+                        "Fn::If": [
+                            "IsProd",
+                            "365",
+                            "7"
+                        ]
+                    }
+                },
+                "MagneticStoreWriteProperties": {
+                    "EnableMagneticStoreWrites": {
+                        "Fn::If": [
+                            "IsProd",
+                            true,
+                            false
+                        ]
+                    }
+                }
+            }
+        },
         "IoTPolicy": {
             "Type": "AWS::IoT::Policy",
             "Properties": {
@@ -207,9 +251,14 @@
                 "Environment": {
                     "Variables": {
                         "TIMESTREAM_DATABASE": "MyTimestreamDatabase",
-                        "TIMESTREAM_TABLE": "MyTimestreamTable",
+                        "TIMESTREAM_TABLE": {
+                            "Fn::Sub": "${Environment}-device-data"
+                        },
                         "ENVIRONMENT": {
                             "Ref": "Environment"
+                        },
+                        "QUEUE_URL": {
+                            "Ref": "SQSQueueDL"
                         }
                     }
                 },
@@ -255,6 +304,7 @@
                                     "Action": [
                                         "sqs:DeleteMessage",
                                         "sqs:ReceiveMessage",
+                                        "sqs:SendMessage",
                                         "sqs:GetQueueAttributes",
                                         "iot:Publish",
                                         "dynamodb:GetItem",
@@ -315,6 +365,20 @@
             "Properties": {
                 "QueueName": {
                     "Fn::Sub": "${Environment}-iot-messages-queue"
+                },
+                "VisibilityTimeout": 300,
+                "MaximumMessageSize": 262144,
+                "MessageRetentionPeriod": 345600,
+                "DelaySeconds": 0,
+                "ReceiveMessageWaitTimeSeconds": 0,
+                "SqsManagedSseEnabled": true
+            }
+        },
+        "SQSQueueDL": {
+            "Type": "AWS::SQS::Queue",
+            "Properties": {
+                "QueueName": {
+                    "Fn::Sub": "${Environment}-iot-dl-queue"
                 },
                 "VisibilityTimeout": 300,
                 "MaximumMessageSize": 262144,

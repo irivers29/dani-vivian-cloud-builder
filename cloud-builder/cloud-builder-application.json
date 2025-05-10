@@ -32,7 +32,7 @@
         "MyTimestreamTable": {
             "Type": "AWS::Timestream::Table",
             "Properties": {
-                "DatabaseName": "MyTimestreamDatabase",
+                "DatabaseName": "iot-timestream-database",
                 "TableName": {
                     "Fn::Sub": "${Environment}-device-data"
                 },
@@ -239,18 +239,18 @@
                 "Role": {
                     "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/${Environment}-lambda-execution-role"
                 },
-                "Runtime": "python3.8",
+                "Runtime": "python3.12",
                 "Code": {
                     "S3Bucket": {
                         "Ref": "S3BucketName"
                     },
                     "S3Key": "lambda_function_package.zip"
                 },
-                "Timeout": 3,
+                "Timeout": 15,
                 "MemorySize": 128,
                 "Environment": {
                     "Variables": {
-                        "TIMESTREAM_DATABASE": "MyTimestreamDatabase",
+                        "TIMESTREAM_DATABASE": "iot-timestream-database",
                         "TIMESTREAM_TABLE": {
                             "Fn::Sub": "${Environment}-device-data"
                         },
@@ -270,7 +270,12 @@
                 ],
                 "EphemeralStorage": {
                     "Size": 512
-                }
+                },
+                "Layers": [
+                    {
+                        "Fn::Sub": "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:psycopg2_3_12:1"
+                    }
+                ]
             }
         },
         "LambdaExecutionRole": {
@@ -328,14 +333,23 @@
                                     "Action": [
                                         "s3:ListBucket"
                                     ],
-                                    "Resource": "arn:aws:s3:::dev-jimmonitoring-iot"
+                                    "Resource": {
+                                        "Fn::Sub": "arn:aws:s3:::${Environment}-jimmonitoring-iot"
+                                    }
                                 },
                                 {
                                     "Effect": "Allow",
                                     "Action": [
                                         "s3:GetObject"
                                     ],
-                                    "Resource": "arn:aws:s3:::dev-jimmonitoring-iot/*"
+                                    "Resource": {
+                                        "Fn::Sub": "arn:aws:s3:::${Environment}-jimmonitoring-iot/*"
+                                    }
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "lambda:InvokeFunction",
+                                    "Resource": "*"
                                 }
                             ]
                         }

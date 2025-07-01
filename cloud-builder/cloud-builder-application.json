@@ -307,6 +307,23 @@
                                 {
                                     "Effect": "Allow",
                                     "Action": [
+                                        "ssm:GetParameter",
+                                        "ssm:GetParameters"
+                                    ],
+                                    "Resource": {
+                                        "Fn::Sub": "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${Environment}/rds-*"
+                                    }
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "kms:Decrypt"
+                                    ],
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
                                         "sqs:DeleteMessage",
                                         "sqs:ReceiveMessage",
                                         "sqs:SendMessage",

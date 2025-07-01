@@ -5,20 +5,7 @@
         "MyTimestreamDatabase": {
             "Type": "AWS::Timestream::Database",
             "Properties": {
-                "DatabaseName": "MyTimestreamDatabase"
-            }
-        },
-        "MyTimestreamTable": {
-            "Type": "AWS::Timestream::Table",
-            "Properties": {
-                "DatabaseName": {
-                    "Ref": "MyTimestreamDatabase"
-                },
-                "TableName": "MyTimestreamTable",
-                "RetentionProperties": {
-                    "MemoryStoreRetentionPeriodInHours": "24",
-                    "MagneticStoreRetentionPeriodInDays": "7"
-                }
+                "DatabaseName": "iot-timestream-database"
             }
         }
     }
